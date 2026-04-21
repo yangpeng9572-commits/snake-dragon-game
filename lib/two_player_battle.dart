@@ -31,13 +31,13 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
   }
 
   void _initGame() {
+    // Create snake bodies first (don't reference each other's snake for food generation)
     _player1State = GameState(
       snake: [
         Position(7, 12),
         Position(6, 12),
         Position(5, 12),
       ],
-      food: _generateFood([..._player1State.snake, ..._player2State.snake]),
       direction: Direction.right,
       currentDragonLevel: 1,
     );
@@ -48,14 +48,14 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
         Position(18, 12),
         Position(19, 12),
       ],
-      food: _generateFood([..._player1State.snake, ..._player2State.snake]),
       direction: Direction.left,
       currentDragonLevel: 1,
     );
     
-    // Set food for both
-    _player1State.food = _generateFood([..._player1State.snake, ..._player2State.snake]);
-    _player2State.food = _player1State.food;
+    // Generate and assign food AFTER both snakes exist (fixes late init bug)
+    final sharedFood = _generateFood([..._player1State.snake, ..._player2State.snake]);
+    _player1State.food = sharedFood;
+    _player2State.food = sharedFood;
   }
 
   @override
@@ -91,6 +91,10 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
       // Move both snakes
       _player1State.move();
       _player2State.move();
+
+      // MUST call updateEvolution every tick to decrement evolutionFrame
+      _player1State.updateEvolution();
+      _player2State.updateEvolution();
 
       // Check for food collision - who eats first gets the point
       if (_player1State.snake.first == _player1State.food ||

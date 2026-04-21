@@ -3,6 +3,7 @@ import 'snake_game.dart';
 import 'two_player_battle.dart';
 import 'single_player_npc.dart';
 import 'constants.dart';
+import 'leaderboard_service.dart';
 
 void main() {
   runApp(const SnakeApp());
@@ -25,8 +26,21 @@ class SnakeApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final LeaderboardService _leaderboardService = LeaderboardService();
+
+  @override
+  void initState() {
+    super.initState();
+    _leaderboardService.load();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -162,12 +176,38 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _showLeaderboard(BuildContext context) {
+  void _showLeaderboard(BuildContext context) async {
+    // Reload to get latest data
+    await _leaderboardService.load();
+    if (!context.mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('🏆 排行榜'),
-        content: const Text('開始遊戲後達成高分可上榜！'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _leaderboardService.entries.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('還沒有記錄！開始遊戲上榜吧！'),
+                )
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _leaderboardService.entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = _leaderboardService.entries[index];
+                    return ListTile(
+                      leading: _getMedalIcon(index),
+                      title: Text(entry.name),
+                      subtitle: Text('Level ${entry.maxLevel}'),
+                      trailing: Text(
+                        '${entry.score}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    );
+                  },
+                ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -176,5 +216,22 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Widget _getMedalIcon(int index) {
+    switch (index) {
+      case 0:
+        return const Text('🥇', style: TextStyle(fontSize: 24));
+      case 1:
+        return const Text('🥈', style: TextStyle(fontSize: 24));
+      case 2:
+        return const Text('🥉', style: TextStyle(fontSize: 24));
+      default:
+        return CircleAvatar(
+          radius: 14,
+          backgroundColor: Colors.grey[300],
+          child: Text('${index + 1}'),
+        );
+    }
   }
 }
