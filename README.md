@@ -1,17 +1,23 @@
-# snake_game
+# 🐉 Snake Dragon Game (龍之森林)
 
-A new Flutter project.
+A Flutter web game where your snake evolves into a dragon!
 
-## Getting Started
+## Play Online
+**https://yangpeng9572-commits.github.io/snake-dragon-game/**
 
-This project is a starting point for a Flutter application.
+## Auto-Deploy Setup
+This repo uses GitHub Actions for automatic deployment:
+- Push to `main` branch triggers Flutter web build
+- Built files are deployed to `gh-pages` branch
+- Game is served at: https://yangpeng9572-commits.github.io/snake-dragon-game/
 
-A few resources to get you started if this is your first Flutter project:
+## Development
+```bash
+flutter pub get
+flutter run -d chrome
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Build
+```bash
+flutter build web --base-href /snake-dragon-game/
+```
