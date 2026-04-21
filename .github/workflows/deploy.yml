@@ -1,4 +1,4 @@
-name: Deploy to Surge
+name: Deploy to GitHub Pages
 
 on:
   push:
@@ -25,11 +25,9 @@ jobs:
       - name: Build Flutter Web
         run: flutter build web
       
-      - name: Deploy to Surge
-        run: |
-          npm install -g surge
-          cd build/web
-          surge . ${{ secrets.SURGE_DOMAIN }}
-        env:
-          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
-          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
+          publish_branch: gh-pages
