@@ -373,7 +373,6 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
       ),
     );
   }
-  }
 
   Widget _buildHeader() {
     return Container(
