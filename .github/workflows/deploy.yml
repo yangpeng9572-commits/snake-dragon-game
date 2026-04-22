@@ -19,7 +19,6 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.5'
           channel: 'stable'
       
       - name: Install dependencies
@@ -29,7 +28,7 @@ jobs:
         run: flutter build web --base-href /snake-dragon-game/
       
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./build/web
