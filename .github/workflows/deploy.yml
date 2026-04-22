@@ -8,9 +8,6 @@ on:
 permissions:
   contents: write
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -18,22 +15,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.27.1'
-          channel: 'stable'
-          cache: true
-          cache-path: ~/.flutter-cache
-      
+
+      - name: Install Flutter
+        run: |
+          git clone --depth 1 --branch stable https://github.com/flutter/flutter.git /opt/flutter
+          echo "/opt/flutter/bin" >> $GITHUB_PATH
+          flutter precache --web
+
       - name: Install dependencies
         run: flutter pub get
-      
+
       - name: Build Flutter Web
         run: flutter build web --base-href /snake-dragon-game/
-        env:
-          FLUTTER_ROOT: ${{ env.FLUTTER_ROOT }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
