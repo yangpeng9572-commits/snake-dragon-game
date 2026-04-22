@@ -39,12 +39,19 @@ class _SnakeGameWidgetState extends State<SnakeGameWidget>
     _leaderboardService = LeaderboardService();
     _leaderboardService.load();
     _audioService.init();
+    _audioService.playBgm();
+
+    // Wire up sound callbacks
+    _gameState.onEatFood = () => _audioService.playEat();
+    _gameState.onEvolution = () => _audioService.playEvolution();
+
     _startTimer();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _audioService.stopBgm();
     _audioService.dispose();
     super.dispose();
   }

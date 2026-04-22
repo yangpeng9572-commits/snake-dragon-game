@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'constants.dart';
 
 enum Direction { up, down, left, right }
@@ -33,6 +34,10 @@ class GameState {
 
   // Evolution state
   int currentDragonLevel;
+
+  // Event callbacks for audio service
+  VoidCallback? onEatFood;
+  VoidCallback? onEvolution;
 
   GameState({
     required this.snake,
@@ -136,6 +141,9 @@ class GameState {
         currentDragonLevel = newDragonLevel;
         isEvolving = true;
         evolutionFrame = 3; // Very quick flash (less than 1 second)
+        onEvolution?.call();
+      } else {
+        onEatFood?.call();
       }
 
       food = _generateFood(snake);

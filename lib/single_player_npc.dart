@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'constants.dart';
 import 'game_state.dart';
+import 'audio_service.dart';
 
 class SinglePlayerVsNpcWidget extends StatefulWidget {
   const SinglePlayerVsNpcWidget({super.key});
@@ -22,12 +23,28 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
   bool _isGameOver = false;
   String? _winner;
   bool _isPaused = false;
+  
+  // Fixed focus node to prevent KeyboardListener from losing focus on rebuild
+  late FocusNode _focusNode;
+  final AudioService _audioService = AudioService();
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
+    _audioService.init();
+    _audioService.playBgm();
     _initGame();
     _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _audioService.stopBgm();
+    _audioService.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -46,12 +63,6 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
     );
     
     _respawnFood();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   void _startTimer() {
@@ -81,18 +92,19 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
     _npcState.food = food;
   }
 
-  // Simple NPC AI - chase food and avoid collisions
+  // Enhanced NPC AI - chases food, avoids walls, self-collision, and opponent's snake
   void _npcAI() {
     if (_npcState.isGameOver || _npcState.isPaused) return;
     
     final head = _npcState.snake.first;
     final food = _npcState.food;
+    final playerSnake = _playerState.snake;
     
     // Calculate direction to food
     int dx = food.x - head.x;
     int dy = food.y - head.y;
     
-    // Possible moves
+    // Possible moves (not including reverse direction)
     List<Direction> possibleMoves = [];
     
     if (dx > 0 && _npcState.direction != Direction.left) possibleMoves.add(Direction.right);
@@ -100,25 +112,69 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
     if (dy > 0 && _npcState.direction != Direction.up) possibleMoves.add(Direction.down);
     if (dy < 0 && _npcState.direction != Direction.down) possibleMoves.add(Direction.up);
     
-    // Filter out moves that would cause collision
+    // Filter out moves that would cause collision (walls, self, or opponent's body/head)
     List<Direction> safeMoves = [];
     for (Direction move in possibleMoves) {
       Position nextPos = _getNextPosition(head, move);
-      if (_isSafePosition(nextPos, _npcState.snake)) {
+      if (_isSafePosition(nextPos, _npcState.snake, playerSnake)) {
         safeMoves.add(move);
       }
     }
     
-    // Choose best move
-    if (safeMoves.isNotEmpty) {
-      // Prefer moves towards food
-      if (dx.abs() >= dy.abs() && safeMoves.contains(dx > 0 ? Direction.right : Direction.left)) {
-        _npcState.nextDirection = dx > 0 ? Direction.right : Direction.left;
-      } else if (safeMoves.contains(dy > 0 ? Direction.down : Direction.up)) {
-        _npcState.nextDirection = dy > 0 ? Direction.down : Direction.up;
-      } else {
-        _npcState.nextDirection = safeMoves[Random().nextInt(safeMoves.length)];
+    // If no safe moves in preferred directions, try ANY safe move (including reverse if trapped)
+    if (safeMoves.isEmpty) {
+      // Try all 4 directions except reverse (to avoid immediate self-collision)
+      Direction reverseDir = _getReverseDirection(_npcState.direction);
+      for (Direction dir in Direction.values) {
+        if (dir == reverseDir) continue; // Skip exact reverse
+        Position nextPos = _getNextPosition(head, dir);
+        if (_isSafePosition(nextPos, _npcState.snake, playerSnake)) {
+          safeMoves.add(dir);
+        }
       }
+    }
+    
+    // Choose best move from safe moves
+    if (safeMoves.isNotEmpty) {
+      // Prioritize moves towards food
+      Direction? preferredMove;
+      
+      // Primary direction towards food
+      if (dx.abs() >= dy.abs()) {
+        preferredMove = dx > 0 ? Direction.right : Direction.left;
+      } else {
+        preferredMove = dy > 0 ? Direction.down : Direction.up;
+      }
+      
+      // Check if preferred move is safe and not the reverse
+      if (safeMoves.contains(preferredMove)) {
+        _npcState.nextDirection = preferredMove;
+      } else {
+        // Find the safe move that gets closest to food
+        int bestDistance = 9999;
+        Direction? bestMove;
+        for (Direction move in safeMoves) {
+          Position nextPos = _getNextPosition(head, move);
+          int dist = (nextPos.x - food.x).abs() + (nextPos.y - food.y).abs();
+          if (dist < bestDistance) {
+            bestDistance = dist;
+            bestMove = move;
+          }
+        }
+        if (bestMove != null) {
+          _npcState.nextDirection = bestMove;
+        }
+      }
+    }
+    // If still no safe moves, NPC will continue current direction (likely game over)
+  }
+  
+  Direction _getReverseDirection(Direction dir) {
+    switch (dir) {
+      case Direction.up: return Direction.down;
+      case Direction.down: return Direction.up;
+      case Direction.left: return Direction.right;
+      case Direction.right: return Direction.left;
     }
   }
 
@@ -131,15 +187,19 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
     }
   }
 
-  bool _isSafePosition(Position pos, List<Position> snake) {
+  bool _isSafePosition(Position pos, List<Position> selfSnake, List<Position> opponentSnake) {
     // Check wall collision
     if (pos.x < 0 || pos.x >= GameConstants.gridWidth ||
         pos.y < 0 || pos.y >= GameConstants.gridHeight) {
       return false;
     }
-    // Check self collision (skip head)
-    for (int i = 1; i < snake.length - 1; i++) {
-      if (snake[i] == pos) return false;
+    // Check self collision (all body segments including last)
+    for (int i = 1; i < selfSnake.length; i++) {
+      if (selfSnake[i] == pos) return false;
+    }
+    // Check opponent's snake body collision (all segments including head)
+    for (int i = 0; i < opponentSnake.length; i++) {
+      if (opponentSnake[i] == pos) return false;
     }
     return true;
   }
@@ -159,6 +219,7 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
       if (_playerState.snake.first == _playerState.food) {
         _playerState.score += 10;
         _playerState.currentDragonLevel = _calculateLevel(_playerState.score);
+        _audioService.playEat();
         _respawnFood();
       }
       
@@ -199,6 +260,7 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
       if (pDead || nDead) {
         _isGameOver = true;
         _timer?.cancel();
+        _audioService.playGameOver();
         if (pDead && nDead) {
           _winner = '平手！';
         } else if (pDead) {
@@ -261,7 +323,8 @@ class _SinglePlayerVsNpcWidgetState extends State<SinglePlayerVsNpcWidget> {
   @override
   Widget build(BuildContext context) {
     return KeyboardListener(
-      focusNode: FocusNode()..requestFocus(),
+      focusNode: _focusNode,
+      autofocus: true,
       onKeyEvent: _handleKey,
       child: GestureDetector(
         onHorizontalDragEnd: (details) {

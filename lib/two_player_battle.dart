@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'constants.dart';
 import 'game_state.dart';
+import 'audio_service.dart';
 
 class TwoPlayerBattleWidget extends StatefulWidget {
   const TwoPlayerBattleWidget({super.key});
@@ -22,12 +23,28 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
   bool _isGameOver = false;
   String? _winner;
   bool _isPaused = false;
+  
+  // Fixed focus node to prevent KeyboardListener from losing focus on rebuild
+  late FocusNode _focusNode;
+  final AudioService _audioService = AudioService();
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
+    _audioService.init();
+    _audioService.playBgm();
     _initGame();
     _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _audioService.stopBgm();
+    _audioService.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   void _initGame() {
@@ -56,12 +73,6 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
     final sharedFood = _generateFood([..._player1State.snake, ..._player2State.snake]);
     _player1State.food = sharedFood;
     _player2State.food = sharedFood;
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   void _startTimer() {
@@ -101,6 +112,7 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
           _player1State.snake.first == _player2State.food) {
         _player1State.score += 10;
         _player1State.currentDragonLevel = _calculateLevel(_player1State.score);
+        _audioService.playEat();
         _respawnFood();
       }
       
@@ -108,6 +120,7 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
           _player2State.snake.first == _player1State.food) {
         _player2State.score += 10;
         _player2State.currentDragonLevel = _calculateLevel(_player2State.score);
+        _audioService.playEat();
         _respawnFood();
       }
 
@@ -162,6 +175,7 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
       if (p1Dead || p2Dead) {
         _isGameOver = true;
         _timer?.cancel();
+        _audioService.playGameOver();
         if (p1Dead && p2Dead) {
           _winner = '平手！';
         } else if (p1Dead) {
@@ -263,8 +277,9 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
   @override
   Widget build(BuildContext context) {
     return KeyboardListener(
-      focusNode: FocusNode()..requestFocus(),
+      focusNode: _focusNode,
       onKeyEvent: _handleKey,
+      autofocus: true,
       child: Scaffold(
         body: Container(
           decoration: BoxDecoration(
