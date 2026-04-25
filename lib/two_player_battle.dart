@@ -55,6 +55,7 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
         Position(6, 12),
         Position(5, 12),
       ],
+      food: Position(12, 12),
       direction: Direction.right,
       currentDragonLevel: 1,
     );
@@ -65,6 +66,7 @@ class _TwoPlayerBattleWidgetState extends State<TwoPlayerBattleWidget> {
         Position(18, 12),
         Position(19, 12),
       ],
+      food: Position(12, 12),
       direction: Direction.left,
       currentDragonLevel: 1,
     );
